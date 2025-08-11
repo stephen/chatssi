@@ -17,6 +17,8 @@ table = instance.table(BIGTABLE_TABLE_ID)
 # Column family names
 USER_DATA_FAMILY = "user_data"
 METADATA_FAMILY = "metadata"
+CHAT_DATA_FAMILY = "chat_data"
+MESSAGE_DATA_FAMILY = "message_data"
 
 
 def get_bigtable_client():
@@ -44,10 +46,14 @@ async def ensure_table_exists():
             # Create column families with max versions = 1
             user_data_cf = column_family.MaxVersionsGCRule(1)
             metadata_cf = column_family.MaxVersionsGCRule(1)
+            chat_data_cf = column_family.MaxVersionsGCRule(1)
+            message_data_cf = column_family.MaxVersionsGCRule(1)
 
             column_families = {
                 USER_DATA_FAMILY: user_data_cf,
                 METADATA_FAMILY: metadata_cf,
+                CHAT_DATA_FAMILY: chat_data_cf,
+                MESSAGE_DATA_FAMILY: message_data_cf,
             }
 
             admin_table.create(column_families=column_families)

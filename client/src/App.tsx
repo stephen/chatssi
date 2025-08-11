@@ -5,6 +5,7 @@ import { authGetMe, type UserSchema } from "./api-client";
 import { client } from "./api-client/client.gen";
 import "./App.css";
 import AuthCallback from "./AuthCallback";
+import NewChat from "./NewChat";
 import { State, useSimpleState } from "./SimpleState";
 
 client.setConfig({
@@ -37,10 +38,21 @@ function Dashboard() {
             Sign out
           </Button>
           <hr />
-          <p>Chats go here</p>
+          <Button
+            size="sm"
+            variant="filled"
+            onClick={() => navigate("/new")}
+            mb="md"
+          >
+            New Chat
+          </Button>
         </div>
       </AppShell.Navbar>
-      <AppShellMain>Chat interface goes here</AppShellMain>
+      <AppShellMain>
+        <Switch>
+          <Route path="/new" component={NewChat} />
+        </Switch>
+      </AppShellMain>
     </AppShell>
   );
 }

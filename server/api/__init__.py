@@ -4,3 +4,4 @@ api = APIRouter()
 
 # Import auth routes to register them
 from . import auth
+from . import chat
