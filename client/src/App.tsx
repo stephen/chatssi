@@ -5,6 +5,7 @@ import { authGetMe, type UserSchema } from "./api-client";
 import { client } from "./api-client/client.gen";
 import "./App.css";
 import AuthCallback from "./AuthCallback";
+import Chat from "./Chat";
 import NewChat from "./NewChat";
 import { State, useSimpleState } from "./SimpleState";
 
@@ -51,6 +52,7 @@ function Dashboard() {
       <AppShellMain>
         <Switch>
           <Route path="/new" component={NewChat} />
+          <Route path="/chats/:id" component={Chat} />
         </Switch>
       </AppShellMain>
     </AppShell>
