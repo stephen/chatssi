@@ -1,6 +1,6 @@
+from fastapi import APIRouter
 
-from fastapi import FastAPI
-api = FastAPI()
+api = APIRouter()
 
 # Import auth routes to register them
 from . import auth

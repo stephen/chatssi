@@ -7,18 +7,22 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-client": "openapi-ts --input http://localhost:8000/openapi.json --output ./src/api-client"
   },
   "dependencies": {
     "@mantine/core": "^8.2.4",
     "@mantine/hooks": "^8.2.4",
     "@mantine/notifications": "^8.2.4",
+    "@types/events": "^3.0.3",
+    "events": "^3.3.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "wouter": "^3.7.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@hey-api/openapi-ts": "^0.80.8",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.7.0",

@@ -10,7 +10,7 @@ from models.bigtable_user import BigtableUserService
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 24 * 60  # 24 hours
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -33,7 +33,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -48,7 +48,6 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # Try to get token from Authorization header
     authorization = request.headers.get("Authorization")
     if authorization:
         try:
@@ -58,8 +57,7 @@ async def get_current_user(
         except ValueError:
             raise credentials_exception
     else:
-        # Try to get token from session/cookies
-        token = request.session.get("access_token")
+        token = request.cookies.get("access_token")
         if not token:
             raise credentials_exception
 
@@ -80,19 +78,24 @@ async def get_current_user(
 async def get_or_create_user(user_info: dict, db_service: BigtableUserService) -> User:
     google_id = user_info.get("sub")
     email = user_info.get("email")
-    name = user_info.get("name")
+    name = user_info.get("name") or user_info.get("given_name", "")
     picture = user_info.get("picture")
 
-    # Check if user exists
+    # Validate required fields
+    if not google_id:
+        raise ValueError("google_id is required but not found in user_info")
+    if not email:
+        raise ValueError("email is required but not found in user_info")
+    if not name:
+        name = email.split("@")[0]
+
     user = db_service.get_user_by_google_id(google_id)
 
     if not user:
-        # Create new user
         user = db_service.create_user(
             name=name, email=email, google_id=google_id, picture=picture
         )
     else:
-        # Update user info if changed
         if user.name != name or user.picture != picture:
             user = db_service.update_user(user.id, name=name, picture=picture)
 

@@ -102,12 +102,12 @@ class BigtableUserService:
 
         now = datetime.utcnow().isoformat()
 
-        # Set user data
-        row.set_cell(USER_DATA_FAMILY, "name", name)
-        row.set_cell(USER_DATA_FAMILY, "email", email)
-        row.set_cell(USER_DATA_FAMILY, "google_id", google_id)
-        if picture:
-            row.set_cell(USER_DATA_FAMILY, "picture", picture)
+        # Set user data - ensure all values are strings and not None
+        row.set_cell(USER_DATA_FAMILY, "name", str(name) if name is not None else "")
+        row.set_cell(USER_DATA_FAMILY, "email", str(email) if email is not None else "")
+        row.set_cell(USER_DATA_FAMILY, "google_id", str(google_id) if google_id is not None else "")
+        if picture is not None:
+            row.set_cell(USER_DATA_FAMILY, "picture", str(picture))
 
         # Set metadata
         row.set_cell(METADATA_FAMILY, "created_at", now)
@@ -140,11 +140,11 @@ class BigtableUserService:
 
         now = datetime.utcnow().isoformat()
 
-        # Update provided fields
+        # Update provided fields - ensure values are strings
         if name is not None:
-            row.set_cell(USER_DATA_FAMILY, "name", name)
+            row.set_cell(USER_DATA_FAMILY, "name", str(name))
         if picture is not None:
-            row.set_cell(USER_DATA_FAMILY, "picture", picture)
+            row.set_cell(USER_DATA_FAMILY, "picture", str(picture))
 
         # Update timestamp
         row.set_cell(METADATA_FAMILY, "updated_at", now)
