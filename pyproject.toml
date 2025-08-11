@@ -4,4 +4,11 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "authlib>=1.3.0",
+    "fastapi[standard]>=0.116.1",
+    "google-cloud-bigtable>=2.19.0",
+    "httpx>=0.27.0",
+    "itsdangerous>=2.0.0",
+    "python-jose[cryptography]>=3.3.0",
+]
