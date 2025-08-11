@@ -1,6 +1,8 @@
-import { Button, Text, Textarea } from "@mantine/core";
-import { useCallback, useEffect, useState } from "react";
+import { Text } from "@mantine/core";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
+import { chatById } from "./api-client";
+import ChatTextbox from "./ChatTextbox";
 
 export default function Chat() {
   const [match, params] = useRoute("/chats/:id");
@@ -9,7 +11,20 @@ export default function Chat() {
 
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState("");
+  const [messages, setMessages] = useState<
+    Array<{ id: string; type: "user" | "assistant"; content: string }>
+  >([]);
+  const initialMessageProcessed = useRef(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmitWithMessage = useCallback(
     async (messageToSend: string) => {
@@ -53,36 +68,40 @@ export default function Chat() {
                 const parsed = JSON.parse(line);
                 if (parsed.type === "done") {
                   console.log("Stream completed");
-                  // Add the complete response to conversation
-                  setResponse(
-                    (prev) =>
-                      prev +
-                      `\n\nYou: ${messageToSend}\nAssistant: ${assistantResponse}\n`
-                  );
                   break;
                 } else if (parsed.type === "chat_created") {
                   console.log("Chat created:", parsed.chat_id);
                 } else if (parsed.type === "content") {
                   assistantResponse += parsed.content;
                   // Update UI in real-time
-                  setResponse((prev) => {
-                    const lines = prev.split("\n\n");
-                    if (
-                      lines.length > 0 &&
-                      lines[lines.length - 1].startsWith("Assistant:")
-                    ) {
-                      // Update current assistant response
-                      lines[
-                        lines.length - 1
-                      ] = `Assistant: ${assistantResponse}`;
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+
+                    if (lastMessage && lastMessage.type === "assistant") {
+                      // Update current assistant response with accumulated content
+                      lastMessage.content = assistantResponse;
                     } else {
-                      // Start new assistant response
-                      lines.push(
-                        `You: ${messageToSend}`,
-                        `Assistant: ${assistantResponse}`
-                      );
+                      // Start new conversation - add user message and assistant response
+                      if (
+                        !newMessages.some(
+                          (m) =>
+                            m.content === messageToSend && m.type === "user"
+                        )
+                      ) {
+                        newMessages.push({
+                          id: `user-${Date.now()}`,
+                          type: "user",
+                          content: messageToSend,
+                        });
+                      }
+                      newMessages.push({
+                        id: `assistant-${Date.now()}`,
+                        type: "assistant",
+                        content: assistantResponse,
+                      });
                     }
-                    return lines.join("\n\n");
+                    return newMessages;
                   });
                 }
               } catch (e) {
@@ -104,18 +123,64 @@ export default function Chat() {
 
   // Handle initial message from URL params
   useEffect(() => {
+    if (initialMessageProcessed.current) return;
+
     const urlParams = new URLSearchParams(window.location.search);
-    const initialMessage = urlParams.get('message');
+    const initialMessage = urlParams.get("message");
     if (initialMessage) {
+      initialMessageProcessed.current = true;
       setMessage(initialMessage);
-      // Auto-submit the initial message
       setTimeout(() => {
         handleSubmitWithMessage(initialMessage);
       }, 0);
-      // Clean up the URL
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, "", window.location.pathname);
     }
   }, [handleSubmitWithMessage]);
+
+  // Fetch existing chat messages when component mounts
+  useEffect(() => {
+    if (!chatId) return;
+
+    // Check if this is a new chat with an initial message
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialMessage = urlParams.get("message");
+
+    // Skip fetching if this is a new chat with an initial message
+    if (initialMessage) {
+      setIsLoadingChat(false);
+      return;
+    }
+
+    const fetchChatMessages = async () => {
+      try {
+        setIsLoadingChat(true);
+        const result = await chatById({
+          path: { chat_id: chatId },
+        });
+
+        if (result.data && result.data.messages) {
+          // Convert API messages to array format
+          const messageArray = result.data.messages.map(
+            (msg: any, index: number) => ({
+              id: `${msg.message_type}-${index}`,
+              type:
+                msg.message_type === "user"
+                  ? ("user" as const)
+                  : ("assistant" as const),
+              content: msg.content,
+            })
+          );
+          setMessages(messageArray);
+        }
+      } catch (error) {
+        console.error("Failed to fetch chat messages:", error);
+      } finally {
+        setIsLoadingChat(false);
+      }
+    };
+
+    fetchChatMessages();
+  }, [chatId]);
 
   const handleSubmit = async () => {
     await handleSubmitWithMessage(message);
@@ -126,50 +191,70 @@ export default function Chat() {
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-        <Text size="sm" c="dimmed" style={{ alignSelf: "center" }}>
-          Chat: {chatId?.slice(0, 8)}...
-        </Text>
+    <div
+      style={{
+        width: "100%",
+        height: "90vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "16px",
+          paddingBottom: "8px",
+        }}
+      >
+        {isLoadingChat &&
+          messages.map((message) => {
+            const isUser = message.type === "user";
+
+            return (
+              <section
+                key={message.id}
+                style={{
+                  display: "flex",
+                  padding: "16px",
+                  backgroundColor: isUser ? "#e3f2fd" : "#f8f9fa",
+                  borderRadius: "8px",
+                  marginBottom: "8px",
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                  gap: "16px",
+                }}
+              >
+                <Text
+                  size="sm"
+                  fw={500}
+                  c={isUser ? "blue" : "gray"}
+                  style={{ minWidth: "80px", flexShrink: 0 }}
+                >
+                  {isUser ? "You" : "Assistant"}:
+                </Text>
+                <div style={{ flex: 1 }}>{message.content}</div>
+              </section>
+            );
+          })}
+        <div ref={messagesEndRef} />
       </div>
 
-      <Textarea
-        placeholder="Type your message here..."
-        value={message}
-        onChange={(e) => setMessage(e.currentTarget.value)}
-        minRows={3}
-        autosize
-        mb="md"
-      />
-      <Button
-        onClick={handleSubmit}
-        loading={isLoading}
-        disabled={!message.trim()}
-        mb="md"
-        fullWidth
+      <div
+        style={{
+          padding: "16px",
+          borderTop: "1px solid #eee",
+          backgroundColor: "white",
+        }}
       >
-        Send Message
-      </Button>
-
-      {response && (
-        <div
-          style={{
-            padding: "16px",
-            backgroundColor: "#f8f9fa",
-            borderRadius: "8px",
-            whiteSpace: "pre-wrap",
-            fontFamily: "monospace",
-            fontSize: "14px",
-            maxHeight: "400px",
-            overflowY: "auto",
-          }}
-        >
-          <Text size="sm" fw={500} mb="xs">
-            Conversation:
-          </Text>
-          {response}
-        </div>
-      )}
+        <ChatTextbox
+          value={message}
+          onChange={setMessage}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import { Button, Textarea } from "@mantine/core";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import ChatTextbox from "./ChatTextbox";
 
 export default function NewChat() {
   const [message, setMessage] = useState("");
@@ -8,7 +8,7 @@ export default function NewChat() {
 
   const handleSubmit = () => {
     if (!message.trim()) return;
-    
+
     // Generate a new chat ID and redirect with the message as URL param
     const chatId = crypto.randomUUID();
     navigate(`/chats/${chatId}?message=${encodeURIComponent(message)}`);
@@ -16,22 +16,11 @@ export default function NewChat() {
 
   return (
     <div>
-      <Textarea
-        placeholder="Type your message here..."
+      <ChatTextbox
         value={message}
-        onChange={(e) => setMessage(e.currentTarget.value)}
-        minRows={3}
-        autosize
-        mb="md"
+        onChange={setMessage}
+        onSubmit={handleSubmit}
       />
-      <Button
-        onClick={handleSubmit}
-        disabled={!message.trim()}
-        mb="md"
-        fullWidth
-      >
-        Start New Chat
-      </Button>
     </div>
   );
 }
